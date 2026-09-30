@@ -41,11 +41,29 @@ must run it; we pin everything upstream of that seam.
 
 ## Pins
 
-`node --test test/plugs.pins.mjs` — 8 pins:
+`node --test test/plugs.pins.mjs` — 11 pins:
 P1–P3 Excel adapter goldens · P4 bundle determinism (rebuild ⇒ identical sha256)
-· P5 bundle sandbox behavior · P6 **cross-language pins** (Python output
-deep-equals JS output on every vector, incl. the `s==0` and negative-truncation
-edges) · P7–P8 view-model goldens.
+· P5 bundle sandbox behavior · P6 cross-language JS==Python golden vectors
+· P7–P8 view-model goldens · P9 C++ port goldens · P10 streaming style ≡ batch
+· P11 **differential fuzz: 2000 seeded adversarial series (zeros, negatives,
+plateaus, spikes, drift, sign-flips), JS == Python == C++ byte-for-byte**
+(`test/differential.mjs`, also standalone).
+
+## Languages & styles tried (captain 16:56: "try different languages and styles")
+
+| runtime | file | style | pinned by |
+|---|---|---|---|
+| JS (core) | `core/*.mjs` vendored | pure ESM, functional, prototype-free | P1–P5, P11 |
+| JS (streaming) | `streaming/percept-stream.mjs` | reactive/push-class over the same core | P10 |
+| Python | `libreoffice/percept.py` | procedural, LO-macro-ready | P6, P11 |
+| C++17 | `cpp/percept.hpp` | header-only, `constexpr`-friendly, RAII-free | P9, P11 |
+
+Verdict so far: **semantics are the hard part, syntax is not.** The three
+runtimes agree on 2000 fuzzed series because every port pins the same four
+un-portable details: trunc-toward-zero (never floor), the `s==0 → mag 0`
+division edge, upper median for even windows, and FNV-1a-64 chaining. A fourth
+language (Rust/Kotlin/Go) is a day of porting plus the same four pins —
+WASM from the C++ core is the strategic next uniform (see CONCEPTS.md).
 
 ## Honesty notes (do not remove)
 
@@ -63,5 +81,10 @@ edges) · P7–P8 view-model goldens.
 
 1. `functions.json` metadata for Excel CF registration (mechanical).
 2. Sheets `sidebar.html` (paste-series UI → the bundle's analysis fns).
-3. JetBrains port: JVM Kotlin of the four functions (P6-style cross-language pins).
-4. JupyterLab/Obsidian web pane — same view-model, third host.
+3. WASM uniform from `cpp/percept.hpp` (Emscripten) → Excel JS-runtime + VS Code
+   webview + browsers; **not** Apps Script (V8 there exposes no WebAssembly).
+4. JetBrains port: JVM Kotlin of the four functions (P11-style differential pins).
+5. JupyterLab/Obsidian web pane — same view-model, third host.
+
+See `CONCEPTS.md` for the research sketches (witness-sheet, live-column
+streams, WASM uniformity).

@@ -7,12 +7,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { SHAPEOF, PERCEPTS, ETA, DRIFTALARM } from "../excel/functions.js";
 import { analyzeSeries, deltaRows } from "../vscode/view-model.js";
+import { PerceptStream } from "../streaming/percept-stream.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -97,4 +98,35 @@ test("P8 VS Code view-model: rejects garbage honestly; delta rows flag JND cross
   assert.equal(rows[2].rose, true);   // 4 -> 5
   assert.equal(rows[4].rose, true);   // 5 -> 6
   assert.equal(rows[4].fell, false);
+});
+
+test("P9 C++ port: golden vectors byte-identical to JS/Python", () => {
+  const cli = "/tmp/percept-cli";
+  if (!existsSync(cli)) execFileSync("g++", ["-std=c++17", "-O2", "-o", cli, join(root, "cpp/cli.cpp")]);
+  const run = (inp) => execFileSync(cli, { input: inp, encoding: "utf8" }).trim().split("\n");
+  const [g1, g2] = run("S 6 5 5 5 9 9 2\nS 5 100 102 108 108 96\n");
+  assert.equal(g1, "00+0- e2042a187102c385 | -1,-1,-1,9,9,9");
+  assert.equal(g2, "++0- 0835f207b4ee59e2 | -1,4,5,5,6");
+  const [e1] = run("S 4 0 5 10 15\nE 40 1 3 4\n").slice(1); // line 2 is the E result
+  assert.equal(e1, "25 1"); // ETA 25 ticks; alarm at 1 — delta vs a ZERO surround
+  // trips any ratio (division by zero = infinite drift), pinned on purpose.
+  const [e2] = run("S 4 100 101 102 200\nE 300 1 3 4\n").slice(1);
+  assert.equal(e2, "100 3"); // ETA 100; alarm at index 3
+});
+
+test("P10 streaming style: push-at-a-time equals batch, event by event", () => {
+  const xs = [5, 5, 5, 9, 9, 2];
+  const s = new PerceptStream({ w: 4 });
+  const pushed = xs.map((x) => s.push(x).level);
+  assert.deepEqual(pushed, [-1, -1, -1, 9, 9, 9]); // == PERCEPTS batch pin
+  assert.equal(s.shape, "00+0-");
+  assert.deepEqual(s.changePoints, [2, 3, 4]);
+  const s2 = new PerceptStream({ w: 4 });
+  for (const x of [100, 102, 108, 108, 96]) s2.push(x);
+  assert.deepEqual(s2.series, [100, 102, 108, 108, 96]);
+  assert.equal(s2.shape, "++0-");
+});
+
+test("P11 differential fuzz: 2000 seeded adversarial series, JS == Python == C++", { timeout: 180000 }, () => {
+  execFileSync(process.execPath, [join(root, "test/differential.mjs")], { stdio: "pipe" });
 });
