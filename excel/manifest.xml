@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
+  <Id>9d2f4a8a-0c1b-4e5f-9a6d-perceptplugs0001</Id>
+  <Version>0.1.0</Version>
+  <ProviderName>SuperInstance</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="percept-plugs"/>
+  <Description DefaultValue="Perceptual primitives as ordinary spreadsheet functions: SHAPEOF, PERCEPTS, ETA, DRIFTALARM. Deterministic, integer-exact."/>
+  <IconUrl DefaultValue="https://localhost:3000/icon-32.png"/>
+  <SupportUrl DefaultValue="https://github.com/SuperInstance/percept-plugs"/>
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <Runtimes>
+          <Runtime id="Shared" lifetime="long" resid="SharedRuntime.Url"/>
+        </Runtimes>
+        <AllFormFactors>
+          <ExtensionPoint xsi:type="CustomFunctions">
+            <Script>
+              <SourceLocation resid="Functions.Script.Url"/>
+            </Script>
+            <Page>
+              <SourceLocation resid="Functions.Page.Url"/>
+            </Page>
+            <Metadata>
+              <SourceLocation resid="Functions.Metadata.Url"/>
+            </Metadata>
+            <Namespace resid="Functions.Namespace"/>
+          </ExtensionPoint>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="Percept.Group">
+                <Label resid="Group.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="Percept.Panel">
+                  <Label resid="Panel.Label"/>
+                  <Supertip>
+                    <Title resid="Panel.Title"/>
+                    <Description resid="Panel.Desc"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>Percept.Taskpane</TaskpaneId>
+                    <SourceLocation resid="SharedRuntime.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </AllFormFactors>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="SharedRuntime.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
+        <bt:Url id="Functions.Script.Url" DefaultValue="https://localhost:3000/excel/functions.js"/>
+        <bt:Url id="Functions.Page.Url" DefaultValue="https://localhost:3000/excel/functions.html"/>
+        <bt:Url id="Functions.Metadata.Url" DefaultValue="https://localhost:3000/excel/functions.json"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Group.Label" DefaultValue="Percept"/>
+        <bt:String id="Panel.Label" DefaultValue="Percept Panel"/>
+        <bt:String id="Panel.Title" DefaultValue="Percept instruments"/>
+        <bt:String id="Functions.Namespace" DefaultValue="PERCEPT"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Panel.Desc" DefaultValue="Side panel: paste a series, get gates, percepts, shape hash, ETAs."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

@@ -1,0 +1,25 @@
+{
+  "name": "percept-vscode",
+  "displayName": "Percept Instruments",
+  "description": "Side panel for the delta-shape perceptual primitives: gates, percepts, shape hash, ETAs. Deterministic, integer-exact.",
+  "version": "0.1.0",
+  "publisher": "SuperInstance",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Visualization", "Other"],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "type": "module",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "percept-container", "title": "Percept", "icon": "icon.svg" }
+      ]
+    },
+    "views": {
+      "percept-container": [
+        { "id": "percept.panel", "name": "Instruments", "type": "webview" }
+      ]
+    }
+  },
+  "scripts": { "test": "node --test ../test/plugs.pins.mjs" }
+}
