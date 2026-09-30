@@ -105,3 +105,42 @@ the hosts that allow it: one audit surface instead of four ports.
   *detector*, never the significance decider (witness-design's caveat, kept).
 - Gibbs & Candès (arXiv:2106.00170) — change-point false-alarm control;
   backs the README line "shape ≠ significance".
+
+## R1. EKN — e-calibrated kNN over shape space (BUILT v0.4, P13)
+
+Research question (captain 22:56: "research and develop new ML methods for
+quilt"): can the pinned instruments produce a *calibrated* learned detector,
+given the fleet's own evidence that uncalibrated scores are coin flips at the
+bar (realm-ml JEV AUC 0.510, 2026-09-30 pulse)?
+
+**Prior art (honest placement).** kNN anomaly detection with conformal
+p-values is established: kNN-CAD (Ishimtsev & Burnaev 2017, top-3 Numenta 2016);
+exchangeability and conformal martingales (Vovk et al.); rank e-values
+e = (R+1)/(1+#{null ≥ query}) are exact-valid under exchangeability. EKN's
+novelty is narrow and pinned: the nonconformity score is the delta-shape
+embedding — RLE sign runs + change-point set — making it translation-proof BY
+CONSTRUCTION, integer-exact throughout, and sheet-shippable as one function.
+
+**Three findings the pins forced:**
+1. *Raw-sign scoring conflates texture with regime.* Jittery nulls (a sign flip
+   every step) drowned a planted step change. Run-length encoding the sign
+   string (score runs + run count + run lengths) separates them: texture counts
+   runs, regimes place them. After the fix, the planted drift sits above the
+   entire null band (q=877 vs null max 870, e=201).
+2. *Calibration corpus must be disjoint from training.* Scoring corpus members
+   against the train they belong to let each null's self-distance (0) drag its
+   nonconformity below any fresh query — the level pin alarmed 199/400. The
+   classic CAD disjointness requirement, minted firsthand.
+3. *Weber levels are magnitude-relative by design.* `perceive()` divides by
+   the raw local surround, so +1000 translation takes the step's level 12 → 3
+   while the shape is untouched. The instrument's physics (Fechner/Weber), not
+   a bug — and EKN's distance therefore uses only diff-based features. This is
+   the fleet's first pinned statement of WHICH percept features are
+   translation-invariant and which are canon-relative.
+
+**Honest scope.** One-shot e-values pinned (P13). Sequential composition —
+power martingale over a stream of window e-values, anytime Ville bound — is
+SHAPED (the EP-2 lesson: never claim a composition you haven't pinned). The
+natural next pin: the martingale version inherits the level guarantee only
+under the conditional-rank construction; that's a fleet-lane experiment, not a
+README claim.

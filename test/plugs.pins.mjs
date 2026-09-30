@@ -15,6 +15,7 @@ import { SHAPEOF, PERCEPTS, ETA, DRIFTALARM } from "../excel/functions.js";
 import { analyzeSeries, deltaRows } from "../vscode/view-model.js";
 import { PerceptStream } from "../streaming/percept-stream.mjs";
 import { receipt, witness, audit, genesisTip, canonOf } from "../sheets/witness-core.mjs";
+import { shapeEmbed, shapeDist, knnScore, eknE, nullGen } from "../learn/ekn.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -171,4 +172,53 @@ test("P12 witness sheet: honest chain verifies; reorder / truncate / silent-edit
   // the seq field is the caller's accountability: receipts carry it, witness checks length
   assert.equal(rows[2].seq, 2);
   assert.match(rows[0].text, /^0 \| [0-9a-f]{16} \| [0-9a-f]{16} \| [0-9a-f]{16} \| [0-9a-f]{16}$/);
+});
+
+// ---- EKN: e-calibrated kNN over shape space (captain 22:56: new ML methods for quilt) ----
+test("P13 EKN: planted drift crosses the Ville bar; nulls stay under it; translation cannot move the score", () => {
+  // build the honest null world: 120 wander series, same LCG family as the fuzzer
+  const train = nullGen(777001, 120, 24);
+  // the planted-drift query: 16 calm rounds, then a sustained +12 regime (a step)
+  const drifted = [...Array(16).fill(3), ...Array(8).fill(15)];
+  // null replicates for the level pin: 400 fresh wander queries, disjoint seed
+  const nullQueries = nullGen(777002, 400, 24);
+  const R = nullQueries.length;
+
+  // (a) the planted drift IS evidence: e >= 20, i.e. crosses the 1/0.05 bar
+  const planted = eknE(drifted, train, nullGen(777003, 200, 24));
+  assert.equal(planted.crosses20, true);
+  assert.ok(planted.e >= 20, `planted drift e=${planted.e}`);
+
+  // (b) the level holds: 400 fresh null queries against a DISJOINT corpus
+  // (train.slice as corpus = self-distance contamination — P13 fail-first caught
+  // exactly this; CAD validity demands calibration disjoint from training).
+  const levelCorpus = nullGen(777004, 200, 24);
+  const corpusScores = levelCorpus.map((n) => knnScore(n, train));   // once, reused
+  let alarms = 0;
+  for (const q of nullQueries) {
+    const qs = knnScore(q, train);
+    const ge = corpusScores.filter((s) => s >= qs).length;
+    if ((corpusScores.length + 1) >= 20 * (ge + 1)) alarms++;
+  }
+  // expected <= 0.05*400 = 20; binomial sd ~= 4.4; slack pinned at +4
+  assert.ok(alarms <= 24, `null level alarms=${alarms} > 20+4 slack`);
+
+  // (c) value-independence: +1000 translation leaves e IDENTICAL (shape doctrine)
+  const shifted = eknE(drifted.map((x) => x + 1000), train, nullGen(777003, 200, 24));
+  assert.equal(shifted.eNum, planted.eNum);
+  assert.equal(shifted.eDen, planted.eDen);
+
+  // (d) determinism: same seed, same everything
+  const again = eknE(drifted, nullGen(777001, 120, 24), nullGen(777003, 200, 24));
+  assert.deepEqual(again, eknE(drifted, nullGen(777001, 120, 24), nullGen(777003, 200, 24)));
+
+  // (e) e-value exactness: eNum = R+1, eDen = 1 + #{null >= query}
+  assert.equal(planted.eNum, 201);
+  assert.equal(planted.eDen, planted.ge + 1);
+
+  // (f) embedding sanity: identical series -> 0; different magnitudes SAME shape -> 0
+  // (the doctrine); a true sign flip -> positive
+  assert.equal(shapeDist(shapeEmbed([5, 5, 5, 9, 9, 2]), shapeEmbed([5, 5, 5, 9, 9, 2])), 0);
+  assert.equal(shapeDist(shapeEmbed([5, 5, 5, 9, 9, 2]), shapeEmbed([5, 5, 5, 9, 9, 8])), 0);
+  assert.ok(shapeDist(shapeEmbed([5, 5, 5, 9, 9, 2]), shapeEmbed([5, 5, 5, 9, 9, 20])) > 0);
 });

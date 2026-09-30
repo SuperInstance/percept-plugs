@@ -95,6 +95,32 @@ night-wheel's canon-chain fix. Hash width note: the sheet layer folds two
 32-bit FNV lanes (Apps Script number safety); the core hash stays 64-bit —
 semantics identical, width divergent, stated.
 
+## EKN — e-calibrated kNN over shape space (`learn/ekn.mjs`, P13)
+
+The ML layer: an anomaly column whose number is *evidence*, not a vibe.
+Motivated by the fleet's own measurement (2026-09-30 org pulse): a learned
+gate without calibration scored AUC 0.510 — a coin flip at the bar.
+
+- **Embedding**: run-length-encoded sign runs + change-point set (diff-based,
+  translation-invariant by construction). Weber percept levels are deliberately
+  excluded from the distance: `perceive()` measures against the raw local
+  surround (Weber law — magnitude-relative by design), so levels move under a
+  +1000 translation. Shape/runs/cps do not.
+- **Nonconformity**: kNN sum of the 3 smallest integer `shapeDist`s.
+- **Calibration**: rank e-value `e = (R+1) / (1 + #{null ≥ query})` — exact
+  rational, valid under exchangeability (Vovk; kNN-CAD family, Ishimtsev &
+  Burnaev 2017). P13 pins: planted drift crosses the 1/0.05 Ville bar (e=201);
+  400 null replicates stay under it (≤ delta + slack); +1000 translation is
+  bit-identical; determinism; exactness `eNum=R+1, eDen=ge+1`.
+- **Fail-first catches** (this build): raw-sign scoring let jitter nulls drown
+  a planted step (fixed by RLE regime features); train-as-corpus self-distance
+  contamination broke the level (fixed by disjoint calibration corpus).
+- **Honest scope**: one-shot e-values are pinned. Sequential martingale
+  composition (power martingale over a stream, anytime Ville bound) is SHAPED,
+  per the EP-2 lesson — never claim a composition you haven't pinned.
+- **Sheet form**: `=EKNN(range, nullcorpus)` → e-value; conditional format on
+  `e ≥ 1/0.05`. The calibration corpus lives on a hidden `ekn-nulls` tab.
+
 ## Next builds (smallest first)
 
 1. `functions.json` metadata for Excel CF registration (mechanical).
