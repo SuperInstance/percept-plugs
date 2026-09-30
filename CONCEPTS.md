@@ -28,11 +28,10 @@ D-2 silent edit, D-3 reorder, D-4 truncation, D-5 forgery → HMAC layer, D-6
 canonical-JSON collisions); Casey's witness-validation DESIGN.md (integrity =
 Merkle + signed checkpoints + external anchor; RFC 6962/9162 consistency proofs).
 
-**Smallest build (one evening).** Sheets bundle gains `RECEIPT(range, result)`:
-FNV over JSON-canonical args + result, plus `WITNESS(chain_range)` folding the
-column into a tip hash. Pin in node --test exactly like P5. Genesis commitment:
-first receipt's args include the sheet's title + a user nonce (closes D-1 the
-same way the chain fix did).
+**Status: BUILT (v0.3, pin P12).** `RECEIPT`/`WITNESS` shipped in the Sheets
+bundle over a pure `witness-core`; P12 pins honest-chain green plus
+reorder/truncate/silent-edit breaks at the sheet layer, genesis binding
+sheet+nonce.
 
 **Honest caveats.** (1) FNV is not adversarial — public-rule forgery is the
 D-5 lesson; HMAC/signature is a separate key-holding layer, same division as
