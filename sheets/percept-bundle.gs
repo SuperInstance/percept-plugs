@@ -291,6 +291,80 @@ function streamEvents(series, w = 3) {
   return perceive(series, w).map(eventChar);
 }
 
+// ==== sheets/witness-core.mjs (underscore-renamed) ====
+// sheets/witness_-core.mjs — pure witness_-sheet layer (no SpreadsheetApp).
+// The .gs wrapper (built into the bundle by tools/build-bundle.mjs) injects
+// the sheet name; everything else is identical between Node pins and GAS.
+// Closes, at the sheet layer: D-1 (genesis content commitment), D-2 (silent
+// edit -> tip mismatch), D-3 (reorder -> duplicate/discontinuous tip),
+// D-4 (truncation -> declared_length + seq checks). D-5 forgery stays an
+// honest concession (public rule; HMAC is a fleet-lane layer).
+
+function fnv64fold_(str) {
+  // 32-bit lane FNV-1a fold (Apps Script number safety). Chain semantics are
+  // identical to the 64-bit core hash; width divergence documented in README.
+  let h1 = 0x811c9dc5, h2 = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ (c & 0xff), 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ ((c >> 8) & 0xff), 0x01000193) >>> 0;
+  }
+  const p = (x) => ("00000000" + x.toString(16)).slice(-8);
+  return p(h1) + p(h2);
+}
+
+function canonOf_(value) {  // typed-canonical: the D-6 rules, ported
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "number") {
+    if (value === 0 && 1 / value === -Infinity) return "-0";
+    if (Math.abs(value) > 0x1fffffffffffff) throw new Error("int53-overflow");
+    if (!Number.isInteger(value)) throw new Error("non-integer");
+    return String(value);
+  }
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return "[" + value.map(canonOf_).join(",") + "]";
+  const keys = Object.keys(value).sort();
+  return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonOf_(value[k])).join(",") + "}";
+}
+
+function genesisTip_(sheetName, nonce) {
+  return fnv64fold_("genesis:" + nonce + ":" + sheetName);
+}
+
+// One receipt_ row. prevTip for seq 0 is the genesis commitment (D-1 closed):
+// the chain binds sheet name + nonce, not just "cell 0 exists".
+function receipt_(args, result, seq, prevTipOrNull, sheetName, nonce) {
+  const prevTip = seq === 0 ? genesisTip_(sheetName, nonce) : String(prevTipOrNull);
+  const a = canonOf_(args), r = canonOf_(result);
+  const tip = fnv64fold_(a + "|" + r + "|" + prevTip);
+  return { seq, argsHash: fnv64fold_(a), resultHash: fnv64fold_(r), prevTip, tip,
+           text: seq + " | " + fnv64fold_(a) + " | " + fnv64fold_(r) + " | " + prevTip + " | " + tip };
+}
+
+// Fold + audit_. Pure: feed it the extracted tip column and the declared length.
+function witness_(tips, declaredLength) {
+  if (tips.length !== declaredLength)
+    return { ok: false, reason: "declared_length " + declaredLength + " != actual " + tips.length, at: tips.length };
+  for (let i = 1; i < tips.length; i++) {
+    if (tips[i] === tips[i - 1])
+      return { ok: false, reason: "duplicate tip (reorder or copy)", at: i };
+  }
+  return { ok: true, tip: tips.length ? tips[tips.length - 1] : "none", len: tips.length };
+}
+
+// Recompute audit_ (D-2): re-run receipt_() over the recorded inputs; any honest
+// chain reproduces every tip; any silent edit breaks at exactly that row.
+function audit_(receiptInputs, sheetName, nonce) {
+  const tips = [];
+  for (let i = 0; i < receiptInputs.length; i++) {
+    const { args, result } = receiptInputs[i];
+    const r = receipt_(args, result, i, i === 0 ? null : tips[i - 1], sheetName, nonce);
+    tips.push(r.tip);
+  }
+  return tips;
+}
+
 // ==== sheets/appscript.js ====
 // sheets/appscript.js — Google Sheets adapter, appended AFTER the bundled core
 // by tools/build-bundle.mjs (Apps Script V8 has no ES-module imports).
@@ -331,6 +405,27 @@ function DRIFTALARM(series, thresholdNumerator, thresholdDenominator) {
     if (BigInt(Math.abs(xs[i] - xs[i - 1])) * den > BigInt(Math.abs(xs[i - 1])) * num) return i;
   }
   return -1;
+}
+
+// ---- witness layer (GAS wrappers over the bundled, underscore-renamed core) ----
+// Convention: =RECEIPT(args, result, seq, priorTip) next to each witnessed
+// formula; a Witness tab folds the tip column with =WITNESS(E2:E, n).
+// Genesis (D-1 closed): receipt 0 commits sheet name + WITNESS_GENESIS_NONCE.
+
+var WITNESS_GENESIS_NONCE = 'set-me-once-per-sheet';
+
+/** =RECEIPT(A2:C2, SHAPEOF(A2:C2), 0, "") — chained receipt row. */
+function RECEIPT(args, result, seq, priorTip) {
+  const r = receipt_(args, result, Number(seq), priorTip || null,
+    SpreadsheetApp.getActiveSpreadsheet().getName(), WITNESS_GENESIS_NONCE);
+  return r.text;
+}
+
+/** =WITNESS(E2:E, 12) — chain audit: OK tip=... len=... or BREAK at row i: reason. */
+function WITNESS(tipRows, declaredLength) {
+  const tips = (Array.isArray(tipRows) ? tipRows : [[tipRows]]).flat().map(String);
+  const w = witness_(tips, Number(declaredLength));
+  return w.ok ? 'OK tip=' + w.tip + ' len=' + w.len : 'BREAK at row ' + w.at + ': ' + w.reason;
 }
 
 function onOpen() {

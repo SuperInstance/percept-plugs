@@ -41,13 +41,16 @@ must run it; we pin everything upstream of that seam.
 
 ## Pins
 
-`node --test test/plugs.pins.mjs` — 11 pins:
+`node --test test/plugs.pins.mjs` — 12 pins:
 P1–P3 Excel adapter goldens · P4 bundle determinism (rebuild ⇒ identical sha256)
 · P5 bundle sandbox behavior · P6 cross-language JS==Python golden vectors
 · P7–P8 view-model goldens · P9 C++ port goldens · P10 streaming style ≡ batch
 · P11 **differential fuzz: 2000 seeded adversarial series (zeros, negatives,
 plateaus, spikes, drift, sign-flips), JS == Python == C++ byte-for-byte**
-(`test/differential.mjs`, also standalone).
+(`test/differential.mjs`, also standalone)
+· P12 **witness sheet: honest chain verifies; reorder / truncate / silent-edit
+all break; genesis binds sheet+nonce (D-1), audit diverges exactly at the
+edited row (D-2)** — the canon-chain defect classes pinned at the sheet layer.
 
 ## Languages & styles tried (captain 16:56: "try different languages and styles")
 
@@ -76,6 +79,21 @@ WASM from the C++ core is the strategic next uniform (see CONCEPTS.md).
   (`win[len>>1]`), matching the JS sort-index exactly.
 - In-sheet spill shapes differ per platform (Sheets 2-D arrays, Excel dynamic
   arrays); the functions return the platform-native shapes already.
+
+## The witness layer (CONCEPTS C1, built)
+
+`sheets/witness-core.mjs` + GAS wrappers (`RECEIPT`, `WITNESS` in
+`sheets/appscript.js`): every `=SHAPEOF(...)` call can carry a chained receipt
+(FNV-1a fold over typed-canonical args + result + prev tip). The genesis
+receipt commits `sheet name + WITNESS_GENESIS_NONCE`, so a chain cannot be
+spliced onto another sheet (D-1). `WITNESS(tips, declaredLength)` reports
+truncation (D-4) and duplicate tips (D-3); an offline `audit()` recompute
+catches silent edits at exactly the altered row (D-2). D-5 (adversarial
+recomputation) stays an honest concession — the public rule verifies any
+recomputed chain; signatures are a fleet-lane layer, same division as the
+night-wheel's canon-chain fix. Hash width note: the sheet layer folds two
+32-bit FNV lanes (Apps Script number safety); the core hash stays 64-bit —
+semantics identical, width divergent, stated.
 
 ## Next builds (smallest first)
 

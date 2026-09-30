@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { SHAPEOF, PERCEPTS, ETA, DRIFTALARM } from "../excel/functions.js";
 import { analyzeSeries, deltaRows } from "../vscode/view-model.js";
 import { PerceptStream } from "../streaming/percept-stream.mjs";
+import { receipt, witness, audit, genesisTip, canonOf } from "../sheets/witness-core.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,7 +44,7 @@ test("P4 Sheets bundle is deterministic: rebuild reproduces the pinned hash", ()
   execFileSync(process.execPath, [join(root, "tools/build-bundle.mjs")]);
   const b = createHash("sha256").update(readFileSync(join(root, "sheets/percept-bundle.gs"))).digest("hex");
   assert.equal(a, b);
-  assert.equal(a, "c2c0f84bf5d79a770d6c8d2eb6229186d9a707f5290e5a07a79fa5b328fb3ae9");
+  assert.equal(a, "7294de6a3b087bca6e6f932faac455250512f454d645c2dd3dde3d9ef81346e9"); // v0.3 bundle (core + witness layer, 19567 bytes)
 });
 
 test("P5 Sheets bundle behaves: the four cell functions run inside the bundle sandbox", () => {
@@ -129,4 +130,45 @@ test("P10 streaming style: push-at-a-time equals batch, event by event", () => {
 
 test("P11 differential fuzz: 2000 seeded adversarial series, JS == Python == C++", { timeout: 180000 }, () => {
   execFileSync(process.execPath, [join(root, "test/differential.mjs")], { stdio: "pipe" });
+});
+
+// ---- witness sheet (CONCEPTS C1): the four canon-chain defect classes, pinned at the sheet layer ----
+const SHEET = "pulse-2026-09-30", NONCE = "night-wheel";
+const chain = (inputs) => inputs.map((inp, i) =>
+  receipt(inp.args, inp.result, i, i === 0 ? null : chain.tips[i - 1], SHEET, NONCE));
+
+test("P12 witness sheet: honest chain verifies; reorder / truncate / silent-edit all break", () => {
+  const inputs = [
+    { args: [5, 5, 5, 9, 9, 2], result: "00+0- e2042a187102c385" },
+    { args: [10, 15, 20, 25], result: "+++ 0835f207b4ee59e2" },
+    { args: [7, 7, 7], result: "0 cbf29ce484222325" },
+  ];
+  // honest chain
+  let tips = [];
+  const rows = inputs.map((inp, i) => {
+    const r = receipt(inp.args, inp.result, i, i === 0 ? null : tips[i - 1], SHEET, NONCE);
+    tips.push(r.tip);
+    return r;
+  });
+  assert.equal(witness(tips, 3).ok, true);
+  // genesis binds sheet name + nonce (D-1: a different sheet can't graft our chain)
+  assert.notEqual(rows[0].prevTip, genesisTip("other-sheet", NONCE));
+  assert.notEqual(rows[0].prevTip, genesisTip(SHEET, "other-nonce"));
+  // D-4 truncation: declared 3, actual 2
+  assert.equal(witness(tips.slice(0, 2), 3).ok, false);
+  // D-3 reorder: swapped rows change every downstream tip -> recompute mismatch
+  const swapped = audit([inputs[1], inputs[0], inputs[2]], SHEET, NONCE);
+  assert.notEqual(swapped[1], tips[1]);
+  assert.notEqual(swapped[2], tips[2]);
+  // D-2 silent edit: one historical result altered, audit tips diverge exactly there
+  const edited = audit([inputs[0], { args: inputs[1].args, result: "forged" }, inputs[2]], SHEET, NONCE);
+  assert.equal(edited[0], tips[0]);
+  assert.notEqual(edited[1], tips[1]);
+  assert.notEqual(edited[2], tips[2]);
+  // D-6 canonical edges survive the port: -0 != 0, >2^53 throws
+  assert.notEqual(canonOf(-0), canonOf(0));
+  assert.throws(() => canonOf(2 ** 53 + 1), /int53-overflow/);
+  // the seq field is the caller's accountability: receipts carry it, witness checks length
+  assert.equal(rows[2].seq, 2);
+  assert.match(rows[0].text, /^0 \| [0-9a-f]{16} \| [0-9a-f]{16} \| [0-9a-f]{16} \| [0-9a-f]{16}$/);
 });

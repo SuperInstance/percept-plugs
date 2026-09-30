@@ -39,6 +39,27 @@ function DRIFTALARM(series, thresholdNumerator, thresholdDenominator) {
   return -1;
 }
 
+// ---- witness layer (GAS wrappers over the bundled, underscore-renamed core) ----
+// Convention: =RECEIPT(args, result, seq, priorTip) next to each witnessed
+// formula; a Witness tab folds the tip column with =WITNESS(E2:E, n).
+// Genesis (D-1 closed): receipt 0 commits sheet name + WITNESS_GENESIS_NONCE.
+
+var WITNESS_GENESIS_NONCE = 'set-me-once-per-sheet';
+
+/** =RECEIPT(A2:C2, SHAPEOF(A2:C2), 0, "") — chained receipt row. */
+function RECEIPT(args, result, seq, priorTip) {
+  const r = receipt_(args, result, Number(seq), priorTip || null,
+    SpreadsheetApp.getActiveSpreadsheet().getName(), WITNESS_GENESIS_NONCE);
+  return r.text;
+}
+
+/** =WITNESS(E2:E, 12) — chain audit: OK tip=... len=... or BREAK at row i: reason. */
+function WITNESS(tipRows, declaredLength) {
+  const tips = (Array.isArray(tipRows) ? tipRows : [[tipRows]]).flat().map(String);
+  const w = witness_(tips, Number(declaredLength));
+  return w.ok ? 'OK tip=' + w.tip + ' len=' + w.len : 'BREAK at row ' + w.at + ': ' + w.reason;
+}
+
 function onOpen() {
   SpreadsheetApp.getUi().createMenu("Percept")
     .addItem("Open panel", "showPerceptSidebar_")

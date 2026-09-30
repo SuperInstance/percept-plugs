@@ -20,6 +20,15 @@ for (const f of files) {
     .replace(/^export\s+(?=(const|let|var|function|class))/gm, ""); // keep declarations, drop export keyword
   out += `// ==== core/${f} ====\n${src}\n`;
 }
+// witness layer: pure core, exported names underscored for the GAS wrapper
+{
+  let src = readFileSync(join(root, "sheets", "witness-core.mjs"), "utf8")
+    .replace(/^import[^\n]*\n/gm, "")
+    .replace(/^export\s+(?=(const|let|var|function|class))/gm, "");
+  for (const n of ["fnv64fold", "canonOf", "genesisTip", "receipt", "witness", "audit"])
+    src = src.replace(new RegExp(`\\b${n}\\b`, "g"), n + "_");
+  out += `// ==== sheets/witness-core.mjs (underscore-renamed) ====\n${src}\n`;
+}
 out += `// ==== sheets/appscript.js ====\n`;
 out += readFileSync(join(root, "sheets/appscript.js"), "utf8");
 
